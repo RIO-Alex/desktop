@@ -30,11 +30,12 @@ class DefaultTunnelImportService(
             // New tunnels land at the top
             val count = tunnelConfigs.size
             val shiftedGroups = groups.map { it.copy(position = it.position + count) }
-            val shiftedTunnels = tunnels.map {
-                if (it.groupId == null) it.copy(position = it.position + count) else it
-            }
+            val shiftedTunnels =
+                tunnels
+                    .filter { it.groupId == null }
+                    .map { it.copy(position = it.position + count) }
             tunnelGroupRepository.saveAll(shiftedGroups)
-            tunnelRepository.saveAll(shiftedTunnels)
+            tunnelRepository.updateAll(shiftedTunnels)
             val positioned = tunnelConfigs.mapIndexed { index, tunnel ->
                 tunnel.copy(position = index)
             }

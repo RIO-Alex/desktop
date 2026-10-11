@@ -107,7 +107,17 @@ class TunnelsViewModel(
     }
 
     fun onPersistReorder() = intent {
-        tunnelRepository.updateAll(state.tunnelItems.map { it.config })
+        val persisted = tunnelRepository.getAll().associateBy { it.id }
+        val changedTunnels =
+            state.tunnelItems
+                .map { it.config }
+                .filter { tunnel ->
+                    val existing = persisted[tunnel.id]
+                    existing == null ||
+                        existing.position != tunnel.position ||
+                        existing.groupId != tunnel.groupId
+                }
+        if (changedTunnels.isNotEmpty()) tunnelRepository.updateAll(changedTunnels)
         tunnelGroupRepository.saveAll(state.groups)
     }
 
@@ -261,7 +271,14 @@ class TunnelsViewModel(
             is DeleteIntent.Group -> {
                 val tunnels = state.tunnelItems.map { it.config }
                 val (groups, updated) = ungroupKeepingOrder(state.groups, tunnels, intent.group.id)
-                tunnelRepository.updateAll(updated)
+                val before = tunnels.associateBy { it.id }
+                val changedTunnels = updated.filter { tunnel ->
+                    val existing = before[tunnel.id]
+                    existing == null ||
+                        existing.position != tunnel.position ||
+                        existing.groupId != tunnel.groupId
+                }
+                if (changedTunnels.isNotEmpty()) tunnelRepository.updateAll(changedTunnels)
                 tunnelGroupRepository.saveAll(groups)
                 tunnelGroupRepository.delete(intent.group.id)
             }
@@ -322,9 +339,7 @@ class TunnelsViewModel(
         var next = nextChildPosition(all, groupId)
         val ids = tunnels.map { it.id }.toSet()
         tunnelRepository.updateAll(
-            all.map { tunnel ->
-                if (tunnel.id in ids) tunnel.copy(groupId = groupId, position = next++) else tunnel
-            }
+            all.filter { it.id in ids }.map { it.copy(groupId = groupId, position = next++) }
         )
         reduce { state.copy(selectedTunnels = emptyList(), isSelectionMode = false) }
     }
@@ -336,9 +351,7 @@ class TunnelsViewModel(
         var next = nextRootPosition(state.groups, all)
         val ids = grouped.map { it.id }.toSet()
         tunnelRepository.updateAll(
-            all.map { tunnel ->
-                if (tunnel.id in ids) tunnel.copy(groupId = null, position = next++) else tunnel
-            }
+            all.filter { it.id in ids }.map { it.copy(groupId = null, position = next++) }
         )
         reduce { state.copy(selectedTunnels = emptyList(), isSelectionMode = false) }
     }
