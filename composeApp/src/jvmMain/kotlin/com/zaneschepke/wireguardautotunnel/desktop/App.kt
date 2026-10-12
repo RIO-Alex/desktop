@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -57,6 +58,7 @@ import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.autotunnel.wifi.Wi
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.SettingsScreen
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.appearance.AppearanceScreen
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.appearance.display.DisplayScreen
+import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.appearance.language.LanguageScreen
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.dns.DnsSettingsScreen
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.globals.GlobalConfigScreen
 import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.settings.globals.TunnelGlobalsScreen
@@ -191,6 +193,7 @@ fun App(uiState: AppUiState, viewModel: AppViewModel, toaster: ToasterState) {
             ) {
                 Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     WideNavigationRail(
+                        modifier = Modifier.padding(start = 8.dp),
                         state = railState,
                         header = {
                             Column(
@@ -257,7 +260,13 @@ fun App(uiState: AppUiState, viewModel: AppViewModel, toaster: ToasterState) {
                                             Icon(tab.activeIcon, null)
                                         }
                                     },
-                                    label = { Text(stringResource(tab.titleRes)) },
+                                    label = {
+                                        Text(
+                                            stringResource(tab.titleRes),
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.width(88.dp),
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -358,6 +367,7 @@ fun App(uiState: AppUiState, viewModel: AppViewModel, toaster: ToasterState) {
                                     entry<Route.Addresses> { AddressesScreen() }
                                     entry<Route.Appearance> { AppearanceScreen() }
                                     entry<Route.Display> { DisplayScreen(viewModel) }
+                                    entry<Route.Language> { LanguageScreen(viewModel) }
                                 },
                         )
                     }

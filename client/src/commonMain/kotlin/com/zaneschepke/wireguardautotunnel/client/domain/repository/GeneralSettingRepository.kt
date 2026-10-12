@@ -16,7 +16,7 @@ interface GeneralSettingRepository {
 
     suspend fun updateTheme(theme: Theme)
 
-    suspend fun updateLocale(locale: String)
+    suspend fun updateLocale(locale: String?)
 
     suspend fun updateAlreadyDonated(donated: Boolean)
 

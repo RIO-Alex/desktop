@@ -18,7 +18,7 @@ interface GeneralSettingsDao {
     suspend fun updateTheme(theme: String)
 
     @Query("UPDATE general_settings SET locale = :locale WHERE id = 1")
-    suspend fun updateLocale(locale: String)
+    suspend fun updateLocale(locale: String?)
 
     @Query("UPDATE general_settings SET restore_tunnel_on_boot = :enabled WHERE id = 1")
     suspend fun updateRestoreTunnelOnBoot(enabled: Boolean)

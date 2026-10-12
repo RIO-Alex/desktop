@@ -38,7 +38,8 @@ object WindowsSid {
     fun ownerOf(path: Path): String? = runCatching {
         // Path via environment variable, not a -Command argument as a CLI argument,
         // powershell.exe drops the quotes and splits "C:\Users\John Smith\x" at the space.
-        // We avoid -EncodedCommand, which some AV apps (like Norton) flag on sight regardless of the payload.
+        // We avoid -EncodedCommand, which some AV apps (like Norton) flag on sight regardless of
+        // the payload.
         // Owner via .Sddl, not .GetOwner(): Constrained Language Mode blocks method calls but not
         // property reads.
         val script = "(Get-Acl -LiteralPath \$env:WGT_SID_PATH).Sddl"

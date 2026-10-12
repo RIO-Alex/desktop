@@ -103,7 +103,39 @@ kotlin {
     }
 }
 
-buildConfig { buildConfigField("APP_VERSION", provider { "${project.version}" }) }
+// BCP-47 tags that have a translation
+val languagesProvider = providers.provider {
+    fileTree("src/jvmMain/composeResources") { include("values-*/strings.xml") }
+        .map { it.parentFile.name.removePrefix("values-").replace("-r", "-") }
+        .distinct()
+        .sorted() + "en"
+}
+
+buildConfig {
+    buildConfigField("APP_VERSION", provider { "${project.version}" })
+    buildConfigField("LANGUAGES", languagesProvider.map { it.joinToString(",") })
+}
+
+// Crowdin's Android format exporter always backslash escapes apostrophes/quotes, so we clean these
+// up during build.
+// https://community.crowdin.com/t/compose-multiplatform-xml-should-not-escape-android-special-characters/14364).
+val unescapeTranslatedStrings =
+    tasks.register("unescapeTranslatedStrings") {
+        description = "Strips Android-style backslash escaping from composeResources strings.xml"
+        val stringsFiles =
+            fileTree("src/jvmMain/composeResources") { include("values*/strings.xml") }
+        inputs.files(stringsFiles)
+        outputs.upToDateWhen { false }
+        doLast {
+            stringsFiles.forEach { file ->
+                val original = file.readText()
+                val fixed = original.replace("\\'", "'").replace("\\\"", "\"")
+                if (fixed != original) file.writeText(fixed)
+            }
+        }
+    }
+
+tasks.named("convertXmlValueResourcesForJvmMain") { dependsOn(unescapeTranslatedStrings) }
 
 val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
 val isMacOS = System.getProperty("os.name").orEmpty().startsWith("Mac", ignoreCase = true)

@@ -29,7 +29,7 @@ class RoomSettingsRepository(private val settingsDao: GeneralSettingsDao) :
         settingsDao.updateTheme(theme.name)
     }
 
-    override suspend fun updateLocale(locale: String) {
+    override suspend fun updateLocale(locale: String?) {
         settingsDao.updateLocale(locale)
     }
 

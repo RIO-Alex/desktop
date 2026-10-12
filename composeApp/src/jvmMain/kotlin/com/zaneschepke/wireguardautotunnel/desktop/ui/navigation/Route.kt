@@ -32,6 +32,8 @@ sealed class Route : NavKey {
 
     @Keep @Serializable data object Display : Route()
 
+    @Keep @Serializable data object Language : Route()
+
     @Keep @Serializable data object Tunnels : Route()
 
     @Keep @Serializable data class Tunnel(val id: Long) : Route()
@@ -122,6 +124,7 @@ enum class Tab(
                 Route.TunnelRecovery,
                 Route.Appearance,
                 Route.Display,
+                Route.Language,
                 Route.Logs,
                 Route.Startup -> SETTINGS
                 is Route.Support,
@@ -139,6 +142,7 @@ fun routeSerializersModule(): SerializersModule = SerializersModule {
         subclass(Route.Logs::class, Route.Logs.serializer())
         subclass(Route.Appearance::class, Route.Appearance.serializer())
         subclass(Route.Display::class, Route.Display.serializer())
+        subclass(Route.Language::class, Route.Language.serializer())
         subclass(Route.Tunnels::class, Route.Tunnels.serializer())
         subclass(Route.Tunnel::class, Route.Tunnel.serializer())
         subclass(Route.Config::class, Route.Config.serializer())

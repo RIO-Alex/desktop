@@ -36,6 +36,7 @@ import com.zaneschepke.wireguardautotunnel.desktop.ui.state.AppUiState
 import com.zaneschepke.wireguardautotunnel.desktop.ui.state.DaemonConnectionStatus
 import com.zaneschepke.wireguardautotunnel.desktop.ui.theme.Aqua
 import com.zaneschepke.wireguardautotunnel.desktop.update.AppUpdater
+import com.zaneschepke.wireguardautotunnel.desktop.util.LocaleUtil
 import dev.nucleusframework.core.runtime.Platform
 import dev.nucleusframework.servicemanagement.AppService
 import dev.nucleusframework.servicemanagement.AppServiceManager
@@ -79,13 +80,13 @@ class AppViewModel(
             intent {
                 settingsRepository.flow.collect { settings ->
                     if (!state.isLoaded || settings.locale != state.locale) {
-                        LocaleUpdater.updateLocale(state.locale)
+                        LocaleUpdater.updateLocale(settings.locale ?: LocaleUtil.systemLocaleTag)
                     }
                     reduce {
                         state.copy(
                             isLoaded = true,
                             theme = settings.theme,
-                            locale = settings.locale ?: state.locale,
+                            locale = settings.locale,
                             alreadyDonated = settings.alreadyDonated,
                             restoreTunnelOnBoot = settings.restoreTunnelOnBoot,
                             launchAtLogin = settings.launchAtLogin,
@@ -242,6 +243,8 @@ class AppViewModel(
     }
 
     fun setTheme(theme: Theme) = intent { settingsRepository.updateTheme(theme) }
+
+    fun setLocale(locale: String?) = intent { settingsRepository.updateLocale(locale) }
 
     fun setCustomSeedColor(color: Color?) = intent {
         settingsRepository.updateCustomSeedColor(color?.toArgb())

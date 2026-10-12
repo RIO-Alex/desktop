@@ -22,7 +22,8 @@ data class AppUiState(
     val accentStyle: AccentStyle = AccentStyle.TONAL_SPOT,
     val trayIconAppearance: TrayIconAppearance = TrayIconAppearance.AUTOMATIC,
     val daemonStatus: DaemonConnectionStatus = DaemonConnectionStatus.DISCONNECTED,
-    val locale: String = DEFAULT_LOCALE,
+    // Null means Automatic
+    val locale: String? = null,
     val alreadyDonated: Boolean = false,
     val restoreTunnelOnBoot: Boolean = false,
     val launchAtLogin: Boolean = true,
@@ -30,8 +31,4 @@ data class AppUiState(
     val autoTunnelEnabled: Boolean = false,
     val tunnelStatuses: List<TunnelStatus> = emptyList(),
     val tunnelMode: TunnelMode = TunnelMode.VPN,
-) {
-    companion object {
-        const val DEFAULT_LOCALE = "en-US"
-    }
-}
+)

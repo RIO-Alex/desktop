@@ -9,7 +9,7 @@
     <string name="expand_rail">Expand rail</string>
     <string name="failed_to_read_conf_file">Failed to read .conf file</string>
     <string name="failed_to_read_zip_archive">Failed to read .zip archive</string>
-    <string name="only_conf_or_zip_supported">Only \'.conf\' or \'.zip\' files supported</string>
+    <string name="only_conf_or_zip_supported">Only '.conf' or '.zip' files supported</string>
     <string name="tunnel_state_starting">Starting</string>
     <string name="tunnel_state_stopping">Stopping</string>
     <string name="tunnel_state_healthy">Healthy</string>
@@ -57,6 +57,7 @@
     <string name="light">Light</string>
     <string name="dark">Dark</string>
     <string name="display_theme">Display theme</string>
+    <string name="language">Language</string>
     <string name="trusted_wifi_names">Trusted Wi-Fi names</string>
     <string name="primary_tunnel">Default tunnel</string>
     <string name="entry_tunnel">Entry tunnel</string>
@@ -143,7 +144,7 @@
     <string name="system">System</string>
     <string name="doh">DNS over HTTPS (DoH)</string>
     <string name="doh_desc">Resolve using DNS-over-HTTPS</string>
-    <string name="bootstrap_system_dns_desc">Resolve using the device\'s configured DNS</string>
+    <string name="bootstrap_system_dns_desc">Resolve using the device's configured DNS</string>
     <string name="config_error_template">Bad config. %1$s at location: %2$s.</string>
     <string name="ddns_auto_update">Dynamic DNS auto-update</string>
     <string name="ddns_auto_update_description">Automatically updates a peer's endpoint address when its DNS-resolved IP changes</string>

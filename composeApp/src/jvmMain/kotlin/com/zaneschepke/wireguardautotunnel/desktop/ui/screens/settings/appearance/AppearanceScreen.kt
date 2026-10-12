@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,6 +49,11 @@ fun AppearanceScreen() {
                     leading = { Icon(Icons.Outlined.Contrast, contentDescription = null) },
                     title = stringResource(Res.string.display_theme),
                     onClick = { navController.push(Route.Display) },
+                )
+                SurfaceRow(
+                    leading = { Icon(Icons.Outlined.Language, contentDescription = null) },
+                    title = stringResource(Res.string.language),
+                    onClick = { navController.push(Route.Language) },
                 )
             }
         }
