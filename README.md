@@ -125,6 +125,12 @@ Via [Chocolatey](https://community.chocolatey.org/packages/wgtunnel):
 choco install wgtunnel
 ```
 
+Via [WinGet](https://github.com/microsoft/winget-pkgs/tree/master/manifests/w/WGTunnel/WGTunnel):
+
+```powershell
+winget install -e --id WGTunnel.WGTunnel
+```
+
 </details>
 
 <details open>
