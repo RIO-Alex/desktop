@@ -2,7 +2,6 @@ package com.zaneschepke.wireguardautotunnel.core.helper
 
 import co.touchlab.kermit.Logger
 import java.nio.file.Path
-import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 /**
@@ -37,21 +36,15 @@ object WindowsSid {
 
     /** [path]'s owning SID, or null if unknown (including owners without a fixed SID). */
     fun ownerOf(path: Path): String? = runCatching {
-        // Path via environment variable + -EncodedCommand: as a -Command argument, powershell.exe
-        // drops the quotes and splits "C:\Users\John Smith\x" at the space.
+        // Path via environment variable, not a -Command argument as a CLI argument,
+        // powershell.exe drops the quotes and splits "C:\Users\John Smith\x" at the space.
+        // We avoid -EncodedCommand, which some AV apps (like Norton) flag on sight regardless of the payload.
         // Owner via .Sddl, not .GetOwner(): Constrained Language Mode blocks method calls but not
         // property reads.
         val script = "(Get-Acl -LiteralPath \$env:WGT_SID_PATH).Sddl"
-        val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
 
         val builder =
-            ProcessBuilder(
-                    "powershell",
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-EncodedCommand",
-                    encoded,
-                )
+            ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
                 // stderr not merged: PowerShell's error text must never be mistaken for a SID.
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
         builder.environment()["WGT_SID_PATH"] = path.toString()
