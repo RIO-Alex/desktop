@@ -20,14 +20,24 @@ data class LockdownSettings(
     }
 
     companion object {
+        // Unicast private ranges plus the local broadcast and multicast groups LAN
+        // discovery and DHCP use.
         private val LOCAL_NETWORKS =
             setOf(
                 "10.0.0.0/8",
                 "172.16.0.0/12",
                 "192.168.0.0/16",
                 "169.254.0.0/16",
+                "255.255.255.255/32",
+                "224.0.0.0/24",
+                "239.0.0.0/8",
                 "fc00::/7",
                 "fe80::/10",
+                "ff01::/16",
+                "ff02::/16",
+                "ff03::/16",
+                "ff04::/16",
+                "ff05::/16",
             )
     }
 
