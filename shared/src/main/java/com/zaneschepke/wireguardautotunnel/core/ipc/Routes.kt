@@ -21,6 +21,7 @@ object Routes {
     const val BACKEND_STATUS = "$BACKEND_BASE/status"
     const val BACKEND_STATUS_WS = "$BACKEND_BASE/status/ws"
     const val BACKEND_KILL_SWITCH = "$BACKEND_BASE/kill-switch"
+    const val BACKEND_BOOTSTRAP_DNS = "$BACKEND_BASE/bootstrap-dns"
 
     object Tunnels {
         private const val BASE = "/tunnel"

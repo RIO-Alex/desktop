@@ -7,6 +7,8 @@ import com.wgtunnel.parser.Config
 import com.zaneschepke.wireguardautotunnel.core.ipc.Routes
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.StartTunnelRequest
 import com.zaneschepke.wireguardautotunnel.daemon.autotunnel.AutoTunnelSupervisor
+import com.zaneschepke.wireguardautotunnel.daemon.data.DaemonCacheRepository
+import com.zaneschepke.wireguardautotunnel.daemon.dto.applyForBootstrap
 import com.zaneschepke.wireguardautotunnel.daemon.dto.outerConfigOrNull
 import com.zaneschepke.wireguardautotunnel.daemon.dto.toBackendMode
 import com.zaneschepke.wireguardautotunnel.daemon.dto.toCore
@@ -19,7 +21,11 @@ import kotlinx.coroutines.sync.withLock
 
 private val log = Logger.withTag("TunnelRoutes")
 
-fun Route.tunnelRoutes(backend: Backend, autoTunnelSupervisor: AutoTunnelSupervisor) {
+fun Route.tunnelRoutes(
+    backend: Backend,
+    autoTunnelSupervisor: AutoTunnelSupervisor,
+    cacheRepository: DaemonCacheRepository,
+) {
     post(Routes.Tunnels.START_TEMPLATE) {
         autoTunnelSupervisor.tunnelActionMutex.withLock {
             val id =
@@ -54,6 +60,9 @@ fun Route.tunnelRoutes(backend: Backend, autoTunnelSupervisor: AutoTunnelSupervi
                         e.message ?: "Invalid entry tunnel configuration",
                     )
                 }
+
+            // Peer resolution reads the live mode. Apply this request's mode before start.
+            request.bootstrapDns?.applyForBootstrap(backend, cacheRepository)
 
             backend
                 .start(

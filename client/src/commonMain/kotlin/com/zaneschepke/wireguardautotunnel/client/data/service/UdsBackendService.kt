@@ -7,6 +7,7 @@ import com.zaneschepke.wireguardautotunnel.client.service.DaemonService
 import com.zaneschepke.wireguardautotunnel.core.ipc.Routes
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.BackendStatus
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.KillSwitchConfigDto
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.KillSwitchRequest
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -55,6 +56,12 @@ class UdsBackendService(
         }
             .onFailure { lockdownSettingsRepository.updateEnabled(!enabled) }
     }
+
+    override suspend fun setBootstrapDnsMode(mode: BootstrapDnsModeRequest): Result<Unit> =
+        safeDaemonCall {
+            client.put(Routes.BACKEND_BOOTSTRAP_DNS) { setBody(mode) }
+            Unit
+        }
 
     override suspend fun getStatus(): Result<BackendStatus> = runCatching {
         val response = client.get(Routes.BACKEND_STATUS)

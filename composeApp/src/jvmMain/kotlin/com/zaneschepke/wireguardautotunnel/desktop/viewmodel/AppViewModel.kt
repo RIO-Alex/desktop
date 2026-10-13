@@ -15,6 +15,7 @@ import com.zaneschepke.wireguardautotunnel.client.domain.repository.ClientCacheR
 import com.zaneschepke.wireguardautotunnel.client.domain.repository.GeneralSettingRepository
 import com.zaneschepke.wireguardautotunnel.client.domain.repository.TunnelRepository
 import com.zaneschepke.wireguardautotunnel.client.orchestration.AutoTunnelCoordinator
+import com.zaneschepke.wireguardautotunnel.client.orchestration.DnsSettingsCoordinator
 import com.zaneschepke.wireguardautotunnel.client.orchestration.LogCoordinator
 import com.zaneschepke.wireguardautotunnel.client.service.BackendService
 import com.zaneschepke.wireguardautotunnel.client.service.DaemonService
@@ -67,6 +68,7 @@ class AppViewModel(
     private val appUpdater: AppUpdater,
     @Suppress("unused") private val autoTunnelCoordinator: AutoTunnelCoordinator,
     @Suppress("unused") private val logCoordinator: LogCoordinator,
+    @Suppress("unused") private val dnsSettingsCoordinator: DnsSettingsCoordinator,
 ) : OrbitContainerHost<AppUiState, AppUiState, AppSideEffect>, ViewModel() {
 
     private val log = Logger.withTag("AppViewModel")

@@ -68,6 +68,12 @@ class TunnelDaemon(
             } else {
                 daemonLog.d { "Kill switch restore disabled in settings — skipping" }
             }
+
+            val bootstrapDnsMode = cacheRepository.getBootstrapDnsMode()
+            if (bootstrapDnsMode != null) {
+                daemonLog.i { "Restoring bootstrap DNS mode protocol=${bootstrapDnsMode.protocol}" }
+                backend.setBootstrapDnsMode(bootstrapDnsMode.toCore())
+            }
         }
         startUdsServer()
         daemonLog.i { "Binding Unix socket at: $socketPath" }
@@ -120,7 +126,7 @@ class TunnelDaemon(
                     install(hmacShieldPlugin)
                     routing {
                         daemonRoutes(cacheRepository, autoTunnelSupervisor, daemonLogService)
-                        tunnelRoutes(backend, autoTunnelSupervisor)
+                        tunnelRoutes(backend, autoTunnelSupervisor, cacheRepository)
                         backendRoutes(backend, cacheRepository)
                     }
                     monitor.subscribe(ApplicationStarted) {

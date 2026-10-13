@@ -19,4 +19,6 @@ data class StartTunnelRequest(
     val preferIpv6: Boolean = false,
     val ipv6RestoreEnabled: Boolean = false,
     val outerQuickConfig: String? = null,
+    // Global peer resolution DNS. Null leaves the daemon's current mode unchanged.
+    val bootstrapDns: BootstrapDnsModeRequest? = null,
 )

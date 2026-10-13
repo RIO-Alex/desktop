@@ -1,9 +1,12 @@
 package com.zaneschepke.wireguardautotunnel.daemon.dto
 
+import com.wgtunnel.backend.Backend
 import com.wgtunnel.backend.Tunnel
 import com.wgtunnel.backend.model.BackendMode as CoreBackendMode
 import com.wgtunnel.backend.model.KillSwitchConfig
 import com.wgtunnel.backend.model.ProxyConfig
+import com.wgtunnel.backend.model.dns.DnsBoostrapConfig
+import com.wgtunnel.backend.model.dns.DnsBoostrapMode
 import com.wgtunnel.backend.model.dns.ForeignDnsPolicy
 import com.wgtunnel.backend.model.dns.TunnelDnsConfig
 import com.wgtunnel.backend.state.ActiveTunnel
@@ -18,7 +21,9 @@ import com.zaneschepke.wireguardautotunnel.core.ipc.dto.TunnelDnsConfigDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.TunnelModeDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.TunnelState
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.TunnelStatus
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.StartTunnelRequest
+import com.zaneschepke.wireguardautotunnel.daemon.data.DaemonCacheRepository
 
 fun Tunnel.State.toDto(bootstrap: BootstrapState = BootstrapState.None): TunnelState {
     if (bootstrap is BootstrapState.ResolvingDns) return TunnelState.RESOLVING_DNS
@@ -41,6 +46,23 @@ fun CoreBackendMode?.toDto(): BackendMode =
 
 fun KillSwitchConfigDto.toCore(): KillSwitchConfig =
     KillSwitchConfig(allowedIps = allowedIps, metered = false, dualStack = dualStack)
+
+// Applies the global peer resolution mode and caches it before tunnel bootstrap reads it
+suspend fun BootstrapDnsModeRequest.applyForBootstrap(
+    backend: Backend,
+    cache: DaemonCacheRepository,
+) {
+    backend.setBootstrapDnsMode(toCore())
+    cache.updateBootstrapDnsMode(this)
+}
+
+fun BootstrapDnsModeRequest.toCore(): DnsBoostrapMode =
+    when (protocol.trim().lowercase()) {
+        "doh" -> DnsBoostrapMode.Custom(DnsBoostrapConfig.DoH(endpoint))
+        "dot" -> DnsBoostrapMode.Custom(DnsBoostrapConfig.DoT(endpoint))
+        "plain" -> DnsBoostrapMode.Custom(DnsBoostrapConfig.Plain(endpoint))
+        else -> DnsBoostrapMode.System
+    }
 
 fun ProxyConfigDto.toCore(): ProxyConfig =
     ProxyConfig(

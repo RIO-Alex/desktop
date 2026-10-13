@@ -16,6 +16,8 @@ import com.zaneschepke.wireguardautotunnel.core.ipc.dto.AutoTunnelConfigDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.AutoTunnelStatusDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.AutoTunnelTunnelConfigDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.NetworkStatusDto
+import com.zaneschepke.wireguardautotunnel.daemon.data.DaemonCacheRepository
+import com.zaneschepke.wireguardautotunnel.daemon.dto.applyForBootstrap
 import com.zaneschepke.wireguardautotunnel.daemon.dto.outerConfigOrNull
 import com.zaneschepke.wireguardautotunnel.daemon.dto.toBackendMode
 import com.zaneschepke.wireguardautotunnel.daemon.dto.toCore
@@ -35,6 +37,7 @@ import kotlinx.coroutines.sync.withLock
 class AutoTunnelSupervisor(
     private val backend: Backend,
     private val networkMonitor: DesktopNetworkMonitor,
+    private val cacheRepository: DaemonCacheRepository,
     scope: CoroutineScope,
 ) {
     private val log = Logger.withTag("AutoTunnel")
@@ -158,6 +161,7 @@ class AutoTunnelSupervisor(
             }
             .getOrNull()
         if (!request.outerQuickConfig.isNullOrBlank() && outerConfig == null) return
+        request.bootstrapDns?.applyForBootstrap(backend, cacheRepository)
         backend
             .start(
                 tunnel,

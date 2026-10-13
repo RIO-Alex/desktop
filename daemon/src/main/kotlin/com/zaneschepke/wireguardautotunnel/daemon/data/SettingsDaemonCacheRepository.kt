@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.zaneschepke.wireguardautotunnel.core.helper.FilePathsHelper
 import com.zaneschepke.wireguardautotunnel.core.helper.PermissionsHelper
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.KillSwitchConfigDto
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -78,6 +79,22 @@ class SettingsDaemonCacheRepository(
 
     override suspend fun getLocalLoggingEnabled(): Boolean = getBoolean(KEY_LOCAL_LOGGING)
 
+    override suspend fun updateBootstrapDnsMode(mode: BootstrapDnsModeRequest?) {
+        if (mode == null) {
+            remove(KEY_BOOTSTRAP_DNS)
+        } else {
+            put(KEY_BOOTSTRAP_DNS, json.encodeToString(BootstrapDnsModeRequest.serializer(), mode))
+        }
+    }
+
+    override suspend fun getBootstrapDnsMode(): BootstrapDnsModeRequest? {
+        val raw = getString(KEY_BOOTSTRAP_DNS) ?: return null
+        return runCatching {
+            json.decodeFromString(BootstrapDnsModeRequest.serializer(), raw)
+        }
+            .getOrNull()
+    }
+
     private fun getString(key: String): String? = synchronized(lock) { props.getProperty(key) }
 
     private fun getBoolean(key: String): Boolean = getString(key)?.toBoolean() == true
@@ -113,5 +130,6 @@ class SettingsDaemonCacheRepository(
         private const val KEY_KS_CONFIG = "killswitch_config"
         private const val KEY_KS_RESTORE = "killswitch_restore"
         private const val KEY_LOCAL_LOGGING = "local_logging"
+        private const val KEY_BOOTSTRAP_DNS = "bootstrap_dns_mode"
     }
 }

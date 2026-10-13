@@ -1,6 +1,7 @@
 package com.zaneschepke.wireguardautotunnel.daemon.data
 
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.KillSwitchConfigDto
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 
 interface DaemonCacheRepository {
     suspend fun updateKillSwitchEnabled(enabled: Boolean)
@@ -18,4 +19,8 @@ interface DaemonCacheRepository {
     suspend fun setLocalLoggingEnabled(enabled: Boolean)
 
     suspend fun getLocalLoggingEnabled(): Boolean
+
+    suspend fun updateBootstrapDnsMode(mode: BootstrapDnsModeRequest?)
+
+    suspend fun getBootstrapDnsMode(): BootstrapDnsModeRequest?
 }

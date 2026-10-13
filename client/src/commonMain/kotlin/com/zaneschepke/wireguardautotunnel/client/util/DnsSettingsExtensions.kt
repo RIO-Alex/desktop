@@ -5,10 +5,12 @@ import com.wgtunnel.backend.model.dns.TunnelDnsConfig
 import com.wgtunnel.backend.util.DnsHostUtils
 import com.wgtunnel.backend.util.parseDnsServersOnly
 import com.wgtunnel.parser.Config
+import com.zaneschepke.wireguardautotunnel.client.domain.enums.BootstrapDnsProtocol
 import com.zaneschepke.wireguardautotunnel.client.domain.enums.TunnelDnsMode
 import com.zaneschepke.wireguardautotunnel.client.domain.enums.TunnelDnsProtocol
 import com.zaneschepke.wireguardautotunnel.client.domain.model.DnsSettings
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.TunnelDnsConfigDto
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 import java.net.URI
 
 fun DnsSettings.toTunnelDnsConfigOrNull(config: Config): TunnelDnsConfig? {
@@ -89,6 +91,18 @@ fun DnsSettings.toTunnelDnsConfigOrNull(config: Config): TunnelDnsConfig? {
         }
     }
 }
+
+fun DnsSettings.toBootstrapDnsModeRequest(): BootstrapDnsModeRequest =
+    BootstrapDnsModeRequest(
+        protocol =
+            when (bootstrapDnsProtocol) {
+                BootstrapDnsProtocol.SYSTEM -> "system"
+                BootstrapDnsProtocol.DOH -> "doh"
+                BootstrapDnsProtocol.DOT -> "dot"
+                BootstrapDnsProtocol.UDP -> "plain"
+            },
+        endpoint = bootstrapDnsEndpoint,
+    )
 
 fun TunnelDnsConfig.toDto(): TunnelDnsConfigDto =
     TunnelDnsConfigDto(

@@ -7,6 +7,7 @@ import com.zaneschepke.wireguardautotunnel.client.data.service.UdsDaemonService
 import com.zaneschepke.wireguardautotunnel.client.data.service.UdsTunnelService
 import com.zaneschepke.wireguardautotunnel.client.domain.error.ClientException
 import com.zaneschepke.wireguardautotunnel.client.orchestration.AutoTunnelCoordinator
+import com.zaneschepke.wireguardautotunnel.client.orchestration.DnsSettingsCoordinator
 import com.zaneschepke.wireguardautotunnel.client.orchestration.LogCoordinator
 import com.zaneschepke.wireguardautotunnel.client.orchestration.TunnelBackendCoordinator
 import com.zaneschepke.wireguardautotunnel.client.orchestration.TunnelCoordinator
@@ -180,6 +181,15 @@ fun serviceModule(appVersionLabel: String) = module {
             monitoringSettingsRepository = get(),
             proxyRepository = get(),
             lockdownRepository = get(),
+            scope = get(),
+        )
+    }
+
+    single {
+        DnsSettingsCoordinator(
+            backendService = get(),
+            daemonService = get(),
+            dnsSettingsRepository = get(),
             scope = get(),
         )
     }

@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.wgtunnel.backend.Backend
 import com.wgtunnel.backend.exception.BackendException
 import com.zaneschepke.wireguardautotunnel.core.ipc.Routes
+import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.BootstrapDnsModeRequest
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.KillSwitchRequest
 import com.zaneschepke.wireguardautotunnel.daemon.data.DaemonCacheRepository
 import com.zaneschepke.wireguardautotunnel.daemon.dto.toCore
@@ -60,6 +61,15 @@ fun Route.backendRoutes(backend: Backend, cacheRepository: DaemonCacheRepository
                         )
                 }
             }
+    }
+
+    put(Routes.BACKEND_BOOTSTRAP_DNS) {
+        val request = call.receive<BootstrapDnsModeRequest>()
+        log.i { "Setting bootstrap DNS mode protocol=${request.protocol}" }
+
+        backend.setBootstrapDnsMode(request.toCore())
+        cacheRepository.updateBootstrapDnsMode(request)
+        call.respond(HttpStatusCode.OK, "Bootstrap DNS mode updated")
     }
 
     get(Routes.BACKEND_STATUS) {

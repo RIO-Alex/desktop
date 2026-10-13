@@ -36,7 +36,12 @@ fun main() {
     val cacheRepository = SettingsDaemonCacheRepository(json)
     val daemonLogService = DaemonLogService(cacheRepository, scope)
     val autoTunnelSupervisor =
-        AutoTunnelSupervisor(backend = backend, networkMonitor = networkMonitor, scope = scope)
+        AutoTunnelSupervisor(
+            backend = backend,
+            networkMonitor = networkMonitor,
+            cacheRepository = cacheRepository,
+            scope = scope,
+        )
     val daemon =
         TunnelDaemon(
             json = json,

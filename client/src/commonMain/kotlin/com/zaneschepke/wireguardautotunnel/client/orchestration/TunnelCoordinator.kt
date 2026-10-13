@@ -22,6 +22,7 @@ import com.zaneschepke.wireguardautotunnel.client.domain.repository.ProxySetting
 import com.zaneschepke.wireguardautotunnel.client.domain.repository.TunnelRepository
 import com.zaneschepke.wireguardautotunnel.client.service.BackendService
 import com.zaneschepke.wireguardautotunnel.client.service.TunnelService
+import com.zaneschepke.wireguardautotunnel.client.util.toBootstrapDnsModeRequest
 import com.zaneschepke.wireguardautotunnel.client.util.toDto
 import com.zaneschepke.wireguardautotunnel.client.util.toTunnelDnsConfigOrNull
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.KillSwitchConfigDto
@@ -44,7 +45,7 @@ class TunnelCoordinator(
     private val tunnelRepository: TunnelRepository,
     private val clientCacheRepository: ClientCacheRepository,
     settingsRepository: GeneralSettingRepository,
-    dnsSettingsRepository: DnsSettingsRepository,
+    private val dnsSettingsRepository: DnsSettingsRepository,
     monitoringSettingsRepository: MonitoringSettingsRepository,
     proxyRepository: ProxySettingsRepository,
     lockdownRepository: LockdownSettingsRepository,
@@ -147,9 +148,10 @@ class TunnelCoordinator(
         snapshot: RuntimeSettingsSnapshot,
     ): StartTunnelRequest {
         var config = AmneziaConfigNormalizer.ensureAmneziaCompatibility(tunnelConfig.asConfig())
+        val dnsSettings = dnsSettingsRepository.get()
         val policy =
             ConfigReconciler.ConfigReconcilePolicy(
-                dns = snapshot.dns.isGlobalTunnelConfigDnsEnabled,
+                dns = dnsSettings.isGlobalTunnelConfigDnsEnabled,
                 splitTunnel = false,
                 amnezia = snapshot.general.isGlobalAmneziaEnabled,
             )
@@ -163,7 +165,7 @@ class TunnelCoordinator(
             config = ConfigReconciler.reconcileConfig(config, globalConfig, policy)
         }
 
-        val dns = snapshot.dns.toTunnelDnsConfigOrNull(config)
+        val dns = dnsSettings.toTunnelDnsConfigOrNull(config)
         val uiMode = snapshot.general.selectableTunnelMode
         val killSwitchEnabled = snapshot.lockdown.enabled
         val mode =
@@ -191,6 +193,7 @@ class TunnelCoordinator(
             preferIpv6 = tunnelConfig.preferIpv6,
             ipv6RestoreEnabled = tunnelConfig.ipv6RestoreEnabled,
             outerQuickConfig = resolveOuterQuickConfig(tunnelConfig, globalConfig, policy),
+            bootstrapDns = dnsSettings.toBootstrapDnsModeRequest(),
         )
     }
 
