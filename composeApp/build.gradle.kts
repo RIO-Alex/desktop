@@ -30,6 +30,20 @@ val appVersion = (findProperty("app.version") as String?) ?: catalogVersion
 val appFsName = if (isBetaPackaging) "wgtunnel-beta" else "wgtunnel"
 val appDisplayName = if (isBetaPackaging) "WG Tunnel Beta" else "WG Tunnel"
 
+// Shown by macOS in the Location prompt. The app reads the Wi-Fi name only.
+val macWifiLocationUsage =
+    "WG Tunnel uses the Wi-Fi network name to match trusted networks for auto-tunnel. It does not track your location."
+val macWifiLocationPlistKeys =
+    """
+    <key>NSLocationUsageDescription</key>
+    <string>$macWifiLocationUsage</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>$macWifiLocationUsage</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>$macWifiLocationUsage</string>
+    """
+        .trimIndent()
+
 version = appVersion
 
 kotlin {
@@ -140,6 +154,7 @@ tasks.named("convertXmlValueResourcesForJvmMain") { dependsOn(unescapeTranslated
 val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
 val isMacOS = System.getProperty("os.name").orEmpty().startsWith("Mac", ignoreCase = true)
 val macDaemonBundleIdValue = "com.wgtunnel.$appFsName.daemon"
+val macWifiAgentBundleIdValue = "com.wgtunnel.$appFsName.wifi"
 val packagedJvmArgs =
     listOf(
         "-Dapp.variant=$packagingVariant",
@@ -161,6 +176,9 @@ val stagePackagingSidecars =
         macOS.set(isMacOS)
         macDaemonBundleId.set(macDaemonBundleIdValue)
         macDaemonPlist.set(rootProject.file("packaging/macos/com.wgtunnel.daemon.plist"))
+        macWifiAgentBundleId.set(macWifiAgentBundleIdValue)
+        macWifiAgentPlist.set(rootProject.file("packaging/macos/com.wgtunnel.wifi-agent.plist"))
+        appVariant.set(packagingVariant)
         linuxService.set(rootProject.file("packaging/linux/wgtunnel-daemon.service"))
         linuxInstallScript.set(rootProject.file("packaging/linux/tar-install.sh"))
         linuxUninstallScript.set(rootProject.file("packaging/linux/tar-uninstall.sh"))
@@ -205,6 +223,24 @@ val stageAppResources =
                     builtBy(":daemon:nativeImageCompile")
                 }
             )
+        }
+        // The Wi-Fi helper for macOS
+        if (isMacOS) {
+            into("common/bin") {
+                from(
+                    fileTree(
+                        project(":wifi-agent")
+                            .layout
+                            .buildDirectory
+                            .dir("compose/tmp/main/graalvm/nativeCompile")
+                    ) {
+                        include("wgtunnel-wifi")
+                        builtBy(":wifi-agent:nativeImageCompile")
+                    }
+                ) {
+                    rename { "$packagingAppFsName-wifi" }
+                }
+            }
         }
     }
 
@@ -391,6 +427,9 @@ nucleus.application {
             // core's native WireGuard backend is JNI-loaded at runtime and signed
             // independently of our Developer ID
             entitlementsFile.set(rootProject.file("packaging/macos/entitlements.plist"))
+            // JVM packages read this. The GraalVM bundle is patched below because
+            // that Info.plist generator does not consume extraKeysRawXml.
+            infoPlist { extraKeysRawXml = macWifiLocationPlistKeys }
 
             dmg { format = DmgFormat.ULFO }
 
@@ -431,6 +470,7 @@ nucleus.application {
         }
     }
 }
+
 
 val graalvmLaunchersDir = layout.buildDirectory.dir("compose/binaries/main/graalvm-app/$appFsName")
 val graalvmNativeCompileDirs =
@@ -489,35 +529,78 @@ if (isMacOS) {
             dependsOn("copyGraalvmBinaryToApp", stagePackagingSidecars)
             doNotTrackState("Shared graalvm-app dir is mutated by strip/patchelf")
             from(stagePackagingSidecars.map { it.outputDir.get().asFile.resolve("macos") }) {
-                include("*.plist")
+                include("*-daemon.plist")
             }
-            into(
-                provider {
-                    val binariesRoot = layout.buildDirectory.dir("compose/binaries").get().asFile
-                    val appBundle =
-                        binariesRoot.walkTopDown().maxDepth(5).firstOrNull {
-                            it.isDirectory && it.name.endsWith(".app")
-                        }
-                            ?: run {
-                                // Diagnostic
-                                val listing =
-                                    if (binariesRoot.isDirectory) {
-                                        binariesRoot.walkTopDown().maxDepth(5).joinToString("\n") {
-                                            "  ${it.relativeTo(binariesRoot)}"
-                                        }
-                                    } else {
-                                        "<does not exist>"
-                                    }
-                                error(
-                                    "stageMacDaemonPlist: could not locate any .app bundle under " +
-                                        "$binariesRoot\nContents (depth 5):\n$listing"
-                                )
-                            }
-                    appBundle.resolve("Contents/Library/LaunchDaemons")
-                }
-            )
+            into(macBundleContents("Library/LaunchDaemons"))
+        }
+    val stageMacWifiAgentPlist =
+        tasks.register<Copy>("stageMacWifiAgentPlist") {
+            group = "nucleus"
+            description =
+                "Embed the Wi-Fi LaunchAgent plist into the built .app bundle for SMAppService."
+            dependsOn("copyGraalvmBinaryToApp", stagePackagingSidecars)
+            doNotTrackState("Shared graalvm-app dir is mutated by strip/patchelf")
+            from(stagePackagingSidecars.map { it.outputDir.get().asFile.resolve("macos") }) {
+                include("*-wifi.plist")
+            }
+            into(macBundleContents("Library/LaunchAgents"))
         }
     graalvmSidecarTaskNames += "stageMacDaemonPlist"
+    graalvmSidecarTaskNames += "stageMacWifiAgentPlist"
+
+    // generateGraalvmInfoPlist only writes the tmp template as Nucleus doesn't copy it into the
+    // .app bundle's real Contents/Info.plist until copyGraalvmInfoPlist runs later, so the
+    // Location usage keys must be inserted after that copy, not appended to generateGraalvmInfoPlist
+    // itself.
+    val patchMacWifiLocationPlist =
+        tasks.register("patchMacWifiLocationPlist") {
+            group = "nucleus"
+            description =
+                "Insert the Wi-Fi Location usage keys into the built .app bundle's Info.plist."
+            dependsOn("copyGraalvmInfoPlist")
+            doNotTrackState("Mutates copyGraalvmInfoPlist's declared output in place")
+            doLast {
+                val plist = macBundleContents("Info.plist").get()
+                val text = plist.readText()
+                if (text.contains("<key>NSLocationUsageDescription</key>")) return@doLast
+                // Anchor on the outer dict's close next to </plist>, which a well-formed plist
+                // guarantees is unique regardless of how the generator indents it.
+                val closeRegex = Regex("""</dict>\s*</plist>""")
+                val match =
+                    closeRegex.find(text)
+                        ?: error(
+                            "patchMacWifiLocationPlist: could not find the closing </dict></plist> " +
+                                "in ${plist.absolutePath} to insert the Wi-Fi Location usage keys"
+                        )
+                val at = match.range.first
+                plist.writeText(
+                    text.substring(0, at) + macWifiLocationPlistKeys + "\n" + text.substring(at)
+                )
+            }
+        }
+    graalvmSidecarTaskNames += "patchMacWifiLocationPlist"
+}
+
+fun macBundleContents(child: String) = provider {
+    val binariesRoot = layout.buildDirectory.dir("compose/binaries").get().asFile
+    val appBundle =
+        binariesRoot.walkTopDown().maxDepth(5).firstOrNull {
+            it.isDirectory && it.name.endsWith(".app")
+        }
+            ?: run {
+                val listing =
+                    if (binariesRoot.isDirectory) {
+                        binariesRoot.walkTopDown().maxDepth(5).joinToString("\n") {
+                            "  ${it.relativeTo(binariesRoot)}"
+                        }
+                    } else {
+                        "<does not exist>"
+                    }
+                error(
+                    "could not locate any .app bundle under $binariesRoot\nContents (depth 5):\n$listing"
+                )
+            }
+    appBundle.resolve("Contents/$child")
 }
 
 tasks.withType<Copy>().configureEach {
@@ -530,6 +613,15 @@ afterEvaluate {
     tasks
         .matching { it.name.startsWith("packageGraalvm") }
         .configureEach { dependsOn(graalvmSidecarTaskNames) }
+
+    // codesignGraalvmBundle currently runs before these three, so its ad-hoc signature's seal
+    // doesn't cover the plists/Info.plist keys they add afterward.
+    // Force these to run first instead, matching the existing codesignGraalvmDylibs pattern.
+    if (isMacOS) {
+        tasks.named("codesignGraalvmBundle") {
+            dependsOn("stageMacDaemonPlist", "stageMacWifiAgentPlist", "patchMacWifiLocationPlist")
+        }
+    }
 }
 
 tasks.named("copyNonXmlValueResourcesForJvmMain") { dependsOn("exportLibraryDefinitions") }
