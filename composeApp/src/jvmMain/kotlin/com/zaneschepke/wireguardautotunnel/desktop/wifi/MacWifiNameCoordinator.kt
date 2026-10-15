@@ -42,6 +42,7 @@ class MacWifiNameCoordinator(private val scope: CoroutineScope) {
 
     fun requestAuthorization() {
         if (Platform.Current != Platform.MacOS) return
+        log.i { "Requesting Wi-Fi name permission" }
         scope.launch {
             runCatching { WifiSsidNative.requestAuthorization() }
                 .onFailure { log.w(it) { "Wi-Fi name prompt failed" } }

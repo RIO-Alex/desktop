@@ -44,6 +44,48 @@ val macWifiLocationPlistKeys =
     """
         .trimIndent()
 
+// The helper is a nested app so CoreWLAN sees a bundle. Its bundle id matches
+// the container, which is the identity System Settings grants.
+fun macWifiAgentInfoPlist(executable: String): String {
+    fun xml(value: String) =
+        value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>${xml("com.wgtunnel.$appFsName")}</string>
+            <key>CFBundleName</key>
+            <string>${xml(appDisplayName)}</string>
+            <key>CFBundleDisplayName</key>
+            <string>${xml(appDisplayName)}</string>
+            <key>CFBundleExecutable</key>
+            <string>${xml(executable)}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${xml(appVersion)}</string>
+            <key>CFBundleVersion</key>
+            <string>${xml(appVersion)}</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>13.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSLocationUsageDescription</key>
+            <string>${xml(macWifiLocationUsage)}</string>
+            <key>NSLocationWhenInUseUsageDescription</key>
+            <string>${xml(macWifiLocationUsage)}</string>
+            <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+            <string>${xml(macWifiLocationUsage)}</string>
+        </dict>
+        </plist>
+        """
+        .trimIndent() + "\n"
+}
+
 version = appVersion
 
 kotlin {
@@ -548,6 +590,38 @@ if (isMacOS) {
     graalvmSidecarTaskNames += "stageMacDaemonPlist"
     graalvmSidecarTaskNames += "stageMacWifiAgentPlist"
 
+    // A bare executable has no NSBundle, so CoreWLAN keeps returning a nil name
+    // after the user grants Location to WG Tunnel. The helper has to be its own
+    // app, with the container's bundle id, before that grant applies to it.
+    val stageMacWifiAgentBundle =
+        tasks.register("stageMacWifiAgentBundle") {
+            group = "nucleus"
+            description =
+                "Wrap the Wi-Fi helper in a nested app that shares the container's bundle id."
+            dependsOn("copyGraalvmAppResources")
+            doNotTrackState("Moves the helper binary inside the .app after resources are copied")
+            doLast {
+                val executable = "$appFsName-wifi"
+                val src = macBundleContents("MacOS/bin/$executable").get()
+                if (!src.isFile) {
+                    error(
+                        "stageMacWifiAgentBundle: Wi-Fi helper binary missing at ${src.absolutePath}"
+                    )
+                }
+                val nestedMacOS =
+                    macBundleContents("Resources/wifi-agent.app/Contents/MacOS").get()
+                nestedMacOS.mkdirs()
+                val dest = nestedMacOS.resolve(executable)
+                src.copyTo(dest, overwrite = true)
+                dest.setExecutable(true, false)
+                if (src.absolutePath != dest.absolutePath) src.delete()
+                macBundleContents("Resources/wifi-agent.app/Contents/Info.plist")
+                    .get()
+                    .writeText(macWifiAgentInfoPlist(executable))
+            }
+        }
+    graalvmSidecarTaskNames += "stageMacWifiAgentBundle"
+
     // generateGraalvmInfoPlist only writes the tmp template as Nucleus doesn't copy it into the
     // .app bundle's real Contents/Info.plist until copyGraalvmInfoPlist runs later, so the
     // Location usage keys must be inserted after that copy, not appended to generateGraalvmInfoPlist
@@ -585,7 +659,7 @@ fun macBundleContents(child: String) = provider {
     val binariesRoot = layout.buildDirectory.dir("compose/binaries").get().asFile
     val appBundle =
         binariesRoot.walkTopDown().maxDepth(5).firstOrNull {
-            it.isDirectory && it.name.endsWith(".app")
+            it.isDirectory && it.name.endsWith(".app") && it.name != "wifi-agent.app"
         }
             ?: run {
                 val listing =
@@ -614,12 +688,18 @@ afterEvaluate {
         .matching { it.name.startsWith("packageGraalvm") }
         .configureEach { dependsOn(graalvmSidecarTaskNames) }
 
-    // codesignGraalvmBundle currently runs before these three, so its ad-hoc signature's seal
-    // doesn't cover the plists/Info.plist keys they add afterward.
-    // Force these to run first instead, matching the existing codesignGraalvmDylibs pattern.
+    // codesignGraalvmBundle currently runs before these, so its ad-hoc signature's seal
+    // doesn't cover the plists, the nested helper app, or the Info.plist keys they add
+    // afterward. Force these to run first instead, matching the existing
+    // codesignGraalvmDylibs pattern.
     if (isMacOS) {
         tasks.named("codesignGraalvmBundle") {
-            dependsOn("stageMacDaemonPlist", "stageMacWifiAgentPlist", "patchMacWifiLocationPlist")
+            dependsOn(
+                "stageMacDaemonPlist",
+                "stageMacWifiAgentPlist",
+                "stageMacWifiAgentBundle",
+                "patchMacWifiLocationPlist",
+            )
         }
     }
 }

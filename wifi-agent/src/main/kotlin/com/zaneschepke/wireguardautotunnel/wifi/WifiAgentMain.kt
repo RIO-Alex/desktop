@@ -104,7 +104,9 @@ fun main() {
                     postDelayMs = 0L
                     if (!notedUnauthorized) {
                         notedUnauthorized = true
-                        log.i { "Wi-Fi name is not authorized" }
+                        log.i {
+                            "Wi-Fi name is not authorized (${WifiSsidNative.authorizationStatus()})"
+                        }
                     }
                 }
                 WifiReadStep.Wait -> {
