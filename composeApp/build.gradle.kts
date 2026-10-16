@@ -622,6 +622,53 @@ if (isMacOS) {
         }
     graalvmSidecarTaskNames += "stageMacWifiAgentBundle"
 
+    // resignApp Developer ID signs executables under Contents/MacOS, Frameworks,
+    // and runtime, then seals the outer app without --deep. The helper lives
+    // under Resources, so that pass never reaches it and notarization rejects
+    // the ad-hoc signature left by codesignGraalvmBundle.
+    val signMacWifiAgentBundle =
+        tasks.register("signMacWifiAgentBundle") {
+            group = "nucleus"
+            description =
+                "Developer ID sign the nested Wi-Fi helper with a timestamp and hardened runtime."
+            dependsOn("codesignGraalvmBundle")
+            doNotTrackState("Replaces the ad-hoc signature on the nested helper app")
+            doLast {
+                val identity = System.getenv("APPLE_SIGNING_IDENTITY")
+                if (identity.isNullOrBlank()) return@doLast
+                val nestedApp = macBundleContents("Resources/wifi-agent.app").get()
+                if (!nestedApp.isDirectory) {
+                    error(
+                        "signMacWifiAgentBundle: nested helper app missing at ${nestedApp.absolutePath}"
+                    )
+                }
+                val command =
+                    buildList {
+                        add("/usr/bin/codesign")
+                        add("--force")
+                        add("--timestamp")
+                        add("--options")
+                        add("runtime")
+                        add("--sign")
+                        add(identity)
+                        System.getenv("APPLE_SIGNING_KEYCHAIN")?.takeIf { it.isNotBlank() }?.let {
+                            add("--keychain")
+                            add(it)
+                        }
+                        add("--entitlements")
+                        add(rootProject.file("packaging/macos/entitlements.plist").absolutePath)
+                        add(nestedApp.absolutePath)
+                    }
+                val proc = ProcessBuilder(command).redirectErrorStream(true).start()
+                val output = proc.inputStream.bufferedReader().readText()
+                val code = proc.waitFor()
+                if (code != 0) {
+                    error("signMacWifiAgentBundle failed ($code): $output")
+                }
+            }
+        }
+    graalvmSidecarTaskNames += "signMacWifiAgentBundle"
+
     // generateGraalvmInfoPlist only writes the tmp template as Nucleus doesn't copy it into the
     // .app bundle's real Contents/Info.plist until copyGraalvmInfoPlist runs later, so the
     // Location usage keys must be inserted after that copy, not appended to generateGraalvmInfoPlist
