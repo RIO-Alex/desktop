@@ -10,6 +10,7 @@ import com.zaneschepke.wireguardautotunnel.core.ipc.IPC
 import com.zaneschepke.wireguardautotunnel.core.ipc.Routes
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.WifiSsidReport
 import com.zaneschepke.wireguardautotunnel.core.profile.AppVariant
+import com.zaneschepke.wireguardautotunnel.core.wifi.WifiAuthorization
 import com.zaneschepke.wireguardautotunnel.core.wifi.WifiReadStep
 import com.zaneschepke.wireguardautotunnel.core.wifi.WifiSsidNative
 import com.zaneschepke.wireguardautotunnel.core.wifi.wifiReadStep
@@ -77,6 +78,17 @@ fun main() {
     var lastReport: String? = null
     var notedWithheld = false
     var notedUnauthorized = false
+    var askedForAuthorization = false
+    var postedAuthorization: Int? = null
+
+    fun postAuthorizationIfChanged() {
+        val code = WifiSsidNative.authorizationStatus().code
+        if (postedAuthorization == code) return
+        // Leave the current name alone. An empty name is a separate report.
+        postWifiReport(client, ssid = null, authorization = code)
+        postedAuthorization = code
+    }
+
     while (true) {
         if (!libraryReady) {
             libraryReady = runCatching { loadBackendNativeLibrary() }.getOrDefault(false)
@@ -102,17 +114,29 @@ fun main() {
                     nextAuthCheckAt = System.currentTimeMillis() + AUTH_RECHECK_MS
                     retryUntil = 0L
                     postDelayMs = 0L
+                    val status = WifiSsidNative.authorizationStatus()
+                    // One request per process so the helper appears in Location Services.
+                    // macOS does not present the panel for this agent. The app opens Settings.
+                    if (!askedForAuthorization && status == WifiAuthorization.NotDetermined) {
+                        askedForAuthorization = true
+                        log.i { "Requesting Wi-Fi name permission" }
+                        runCatching { WifiSsidNative.requestAuthorization() }
+                            .onFailure { log.w(it) { "Wi-Fi name prompt failed" } }
+                    }
+                    if (postedAuthorization != status.code) {
+                        postWifiReport(client, ssid = "", authorization = status.code)
+                        postedAuthorization = status.code
+                    }
                     if (!notedUnauthorized) {
                         notedUnauthorized = true
-                        log.i {
-                            "Wi-Fi name is not authorized (${WifiSsidNative.authorizationStatus()})"
-                        }
+                        log.i { "Wi-Fi name is not authorized (${status.code})" }
                     }
                 }
                 WifiReadStep.Wait -> {
                     needsAuth = false
                     nextAuthCheckAt = 0L
                     notedUnauthorized = false
+                    postAuthorizationIfChanged()
                     if (retryUntil == 0L) {
                         retryUntil = System.currentTimeMillis() + RETRY_WINDOW_MS
                     }
@@ -123,6 +147,7 @@ fun main() {
                     notedUnauthorized = false
                     retryUntil = 0L
                     postDelayMs = 0L
+                    postAuthorizationIfChanged()
                     if (!notedWithheld) {
                         notedWithheld = true
                         log.i { "Wi-Fi name withheld" }
@@ -135,9 +160,9 @@ fun main() {
                     notedWithheld = false
                     retryUntil = 0L
                     val report = step.ssid
-                    runBlocking {
-                        client.post(Routes.DAEMON_WIFI_SSID) { setBody(WifiSsidReport(report)) }
-                    }
+                    val authorization = WifiSsidNative.authorizationStatus().code
+                    postWifiReport(client, ssid = report, authorization = authorization)
+                    postedAuthorization = authorization
                     postDelayMs = 0L
                     val announce =
                         lastReport != report || wake == Wake.Connected || wake == Wake.Authorization
@@ -156,6 +181,14 @@ fun main() {
             postDelayMs =
                 (if (postDelayMs == 0L) 500L else postDelayMs * 2).coerceAtMost(POST_BACKOFF_MAX_MS)
             if (needsAuth) nextAuthCheckAt = System.currentTimeMillis() + postDelayMs
+        }
+    }
+}
+
+private fun postWifiReport(client: HttpClient, ssid: String?, authorization: Int) {
+    runBlocking {
+        client.post(Routes.DAEMON_WIFI_SSID) {
+            setBody(WifiSsidReport(ssid = ssid, authorization = authorization))
         }
     }
 }

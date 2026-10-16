@@ -43,4 +43,6 @@ data class AutoTunnelStatusDto(
     val running: Boolean = false,
     val enabled: Boolean = false,
     val network: NetworkStatusDto = NetworkStatusDto(),
+    // Helper's Location status. Null until the macOS Wi-Fi helper has reported.
+    val wifiAuthorization: Int? = null,
 )

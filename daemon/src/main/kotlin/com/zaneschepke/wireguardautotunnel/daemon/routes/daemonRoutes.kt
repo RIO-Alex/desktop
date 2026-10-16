@@ -6,6 +6,7 @@ import com.zaneschepke.wireguardautotunnel.core.ipc.dto.AutoTunnelConfigDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.DaemonInfoDto
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.FlagRequest
 import com.zaneschepke.wireguardautotunnel.core.ipc.dto.request.WifiSsidReport
+import com.zaneschepke.wireguardautotunnel.core.wifi.WifiAuthorization
 import com.zaneschepke.wireguardautotunnel.daemon.BuildConfig
 import com.zaneschepke.wireguardautotunnel.daemon.autotunnel.AutoTunnelSupervisor
 import com.zaneschepke.wireguardautotunnel.daemon.data.DaemonCacheRepository
@@ -71,11 +72,21 @@ fun Route.daemonRoutes(
 
     post(Routes.DAEMON_WIFI_SSID) {
         val report = call.receive<WifiSsidReport>()
+        val ssid = report.ssid
+        val authorization = WifiAuthorization.fromCode(report.authorization)
         log.d {
-            if (report.ssid.isBlank()) "Cleared observed Wi-Fi name"
-            else "Recorded observed Wi-Fi name"
+            when {
+                !authorization.granted -> "Wi-Fi helper is not authorized (${authorization.code})"
+                ssid == null -> "Recorded Wi-Fi helper authorization"
+                ssid.isBlank() -> "Cleared observed Wi-Fi name"
+                else -> "Recorded observed Wi-Fi name"
+            }
         }
-        networkMonitor?.setObservedSsid(report.ssid)
+        networkMonitor?.setHelperAuthorization(authorization.code)
+        when {
+            !authorization.granted -> networkMonitor?.setObservedSsid("")
+            ssid != null -> networkMonitor?.setObservedSsid(ssid)
+        }
         call.respond(HttpStatusCode.OK, "Wi-Fi name recorded")
     }
 

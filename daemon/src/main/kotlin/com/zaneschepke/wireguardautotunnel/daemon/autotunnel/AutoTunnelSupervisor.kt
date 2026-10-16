@@ -59,13 +59,24 @@ class AutoTunnelSupervisor(
         AutoTunnelReconciler(scope = scope, status = backend.status, host = DaemonHost())
 
     val statusFlow: Flow<AutoTunnelStatusDto> =
-        combine(runningFlow, planFlow, networkMonitor.info) { running, plan, network ->
-                statusOf(running, plan, network)
+        combine(
+                runningFlow,
+                planFlow,
+                networkMonitor.info,
+                networkMonitor.helperAuthorization,
+            ) { running, plan, network, wifiAuthorization ->
+                statusOf(running, plan, network, wifiAuthorization)
             }
             .distinctUntilChanged()
 
     val status: AutoTunnelStatusDto
-        get() = statusOf(runningFlow.value, planFlow.value, networkMonitor.info.value)
+        get() =
+            statusOf(
+                runningFlow.value,
+                planFlow.value,
+                networkMonitor.info.value,
+                networkMonitor.helperAuthorization.value,
+            )
 
     fun updatePlan(plan: AutoTunnelConfigDto) {
         if (planFlow.value != plan) {
@@ -176,6 +187,7 @@ class AutoTunnelSupervisor(
         running: Boolean,
         plan: AutoTunnelConfigDto,
         network: NetworkInfoDto,
+        wifiAuthorization: Int?,
     ): AutoTunnelStatusDto {
         return AutoTunnelStatusDto(
             running = running,
@@ -186,6 +198,7 @@ class AutoTunnelSupervisor(
                     ssid = network.ssid,
                     bssid = if (ignoreBssid) "" else network.bssid.uppercase(),
                 ),
+            wifiAuthorization = wifiAuthorization,
         )
     }
 }

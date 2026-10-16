@@ -202,8 +202,8 @@
     <string name="tunnel_mapping">Tunnel mapping</string>
     <string name="wifi_settings">Wi-Fi settings</string>
     <string name="wifi_name_permission_title">Wi-Fi name</string>
-    <string name="wifi_name_permission_body">macOS hides the Wi-Fi network name until Location Services is allowed for WG Tunnel. The name is used only to match trusted networks. WG Tunnel does not track your location.</string>
-    <string name="wifi_name_allow">Allow Wi-Fi name</string>
+    <string name="wifi_name_permission_body">macOS hides the Wi-Fi network name until Location Services is allowed for WG Tunnel. The button opens that page. The name is used only to match trusted networks. WG Tunnel does not track your location.</string>
+    <string name="wifi_name_allow">Open Location Settings</string>
     <string name="wifi_name_unavailable_title">Wi-Fi name unavailable</string>
     <string name="wifi_name_denied_body">Location Services is off for WG Tunnel, so macOS will not share the Wi-Fi name. Turn it on in System Settings, Privacy &amp; Security, Location Services.</string>
     <string name="wifi_name_services_off_body">Location Services is turned off on this Mac, so the Wi-Fi name is unavailable. Turn on Location Services in System Settings, Privacy &amp; Security, Location Services, then allow WG Tunnel.</string>

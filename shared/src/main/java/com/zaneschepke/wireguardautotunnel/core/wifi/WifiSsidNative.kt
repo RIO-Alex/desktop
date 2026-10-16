@@ -24,8 +24,8 @@ enum class WifiAuthorization(val code: Int) {
 /**
  * Wi-Fi name reader backed by CoreWLAN in this process.
  *
- * The desktop app calls [authorization] and [requestAuthorization] for the permission card. The
- * Wi-Fi LaunchAgent calls [authorization], [associated], and [currentSsid]. [waitForEvents] runs
+ * The Wi-Fi LaunchAgent calls [authorization], [requestAuthorization], [associated], and
+ * [currentSsid]. The desktop app does not prompt. It opens Location Settings. [waitForEvents] runs
  * the main run loop so a Location grant delivered to this process wakes the agent, which then reads
  * the name. [setObserved] writes the name into this process's network monitor, so only the daemon
  * may call it.

@@ -9,9 +9,11 @@ import com.zaneschepke.wireguardautotunnel.core.wifi.WifiSsidNative
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class DesktopNetworkMonitor(scope: CoroutineScope) : NetworkMonitor {
@@ -19,6 +21,11 @@ class DesktopNetworkMonitor(scope: CoroutineScope) : NetworkMonitor {
     private val impl = DesktopNativeNetworkMonitor(scope)
 
     val info: StateFlow<NetworkInfoDto> = impl.info
+
+    private val _helperAuthorization = MutableStateFlow<Int?>(null)
+
+    /** Location status last reported by the macOS Wi-Fi helper. Null until it has checked in. */
+    val helperAuthorization: StateFlow<Int?> = _helperAuthorization.asStateFlow()
 
     private val _wifiReadRequests =
         MutableSharedFlow<Unit>(
@@ -50,5 +57,9 @@ class DesktopNetworkMonitor(scope: CoroutineScope) : NetworkMonitor {
     fun setObservedSsid(ssid: String) {
         runCatching { WifiSsidNative.setObserved(ssid) }
             .onFailure { log.w(it) { "Failed to record Wi-Fi name" } }
+    }
+
+    fun setHelperAuthorization(code: Int) {
+        _helperAuthorization.value = code
     }
 }

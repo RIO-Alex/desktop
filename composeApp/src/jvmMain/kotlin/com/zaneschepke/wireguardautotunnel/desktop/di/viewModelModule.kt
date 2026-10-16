@@ -19,9 +19,10 @@ import org.koin.dsl.module
 
 val viewModelModule = module {
     single { AppUpdater() }
-    // Created at startup so the menu-bar app can raise the Location prompt and
-    // refresh the permission card while the window is hidden.
-    single(createdAtStart = true) { MacWifiNameCoordinator(scope = get()) }
+    // Created at startup so the permission card follows the helper while the window is hidden.
+    single(createdAtStart = true) {
+        MacWifiNameCoordinator(scope = get(), daemonService = get())
+    }
     viewModelOf(::AppViewModel)
     viewModelOf(::TunnelsViewModel)
     viewModel { (id: Long) -> TunnelViewModel(get(), get(), get(), id) }

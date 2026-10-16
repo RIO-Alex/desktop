@@ -33,19 +33,8 @@ val appDisplayName = if (isBetaPackaging) "WG Tunnel Beta" else "WG Tunnel"
 // Shown by macOS in the Location prompt. The app reads the Wi-Fi name only.
 val macWifiLocationUsage =
     "WG Tunnel uses the Wi-Fi network name to match trusted networks for auto-tunnel. It does not track your location."
-val macWifiLocationPlistKeys =
-    """
-    <key>NSLocationUsageDescription</key>
-    <string>$macWifiLocationUsage</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>$macWifiLocationUsage</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>$macWifiLocationUsage</string>
-    """
-        .trimIndent()
 
-// The helper is a nested app so CoreWLAN sees a bundle. Its bundle id matches
-// the container, which is the identity System Settings grants.
+// The helper uses the container bundle id.
 fun macWifiAgentInfoPlist(executable: String): String {
     fun xml(value: String) =
         value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -469,9 +458,8 @@ nucleus.application {
             // core's native WireGuard backend is JNI-loaded at runtime and signed
             // independently of our Developer ID
             entitlementsFile.set(rootProject.file("packaging/macos/entitlements.plist"))
-            // JVM packages read this. The GraalVM bundle is patched below because
-            // that Info.plist generator does not consume extraKeysRawXml.
-            infoPlist { extraKeysRawXml = macWifiLocationPlistKeys }
+            // Location usage strings belong only on the Wi-Fi helper. Putting them
+            // on this app makes System Settings list a second WG Tunnel row.
 
             dmg { format = DmgFormat.ULFO }
 
@@ -590,14 +578,14 @@ if (isMacOS) {
     graalvmSidecarTaskNames += "stageMacDaemonPlist"
     graalvmSidecarTaskNames += "stageMacWifiAgentPlist"
 
-    // A bare executable has no NSBundle, so CoreWLAN keeps returning a nil name
-    // after the user grants Location to WG Tunnel. The helper has to be its own
-    // app, with the container's bundle id, before that grant applies to it.
+    // A bare executable has no NSBundle, so CoreWLAN keeps returning a nil name.
+    // The helper is its own app and keeps the container bundle id, so it is the
+    // same Location Services client as WG Tunnel.
     val stageMacWifiAgentBundle =
         tasks.register("stageMacWifiAgentBundle") {
             group = "nucleus"
             description =
-                "Wrap the Wi-Fi helper in a nested app that shares the container's bundle id."
+                "Wrap the Wi-Fi helper in a nested app with the container bundle id."
             dependsOn("copyGraalvmAppResources")
             doNotTrackState("Moves the helper binary inside the .app after resources are copied")
             doLast {
@@ -669,34 +657,27 @@ if (isMacOS) {
         }
     graalvmSidecarTaskNames += "signMacWifiAgentBundle"
 
-    // generateGraalvmInfoPlist only writes the tmp template as Nucleus doesn't copy it into the
-    // .app bundle's real Contents/Info.plist until copyGraalvmInfoPlist runs later, so the
-    // Location usage keys must be inserted after that copy, not appended to generateGraalvmInfoPlist
-    // itself.
+    // The helper plist carries the Location usage strings. Strip them from the
+    // container if a generator added any, so the GUI is not a second Location client.
     val patchMacWifiLocationPlist =
         tasks.register("patchMacWifiLocationPlist") {
             group = "nucleus"
             description =
-                "Insert the Wi-Fi Location usage keys into the built .app bundle's Info.plist."
+                "Remove Wi-Fi Location usage keys from the main .app Info.plist."
             dependsOn("copyGraalvmInfoPlist")
             doNotTrackState("Mutates copyGraalvmInfoPlist's declared output in place")
             doLast {
                 val plist = macBundleContents("Info.plist").get()
                 val text = plist.readText()
-                if (text.contains("<key>NSLocationUsageDescription</key>")) return@doLast
-                // Anchor on the outer dict's close next to </plist>, which a well-formed plist
-                // guarantees is unique regardless of how the generator indents it.
-                val closeRegex = Regex("""</dict>\s*</plist>""")
-                val match =
-                    closeRegex.find(text)
-                        ?: error(
-                            "patchMacWifiLocationPlist: could not find the closing </dict></plist> " +
-                                "in ${plist.absolutePath} to insert the Wi-Fi Location usage keys"
-                        )
-                val at = match.range.first
-                plist.writeText(
-                    text.substring(0, at) + macWifiLocationPlistKeys + "\n" + text.substring(at)
-                )
+                if (!text.contains("NSLocation")) return@doLast
+                val stripped =
+                    text.replace(
+                        Regex(
+                            """[ \t]*<key>NSLocation(?:WhenInUse|AlwaysAndWhenInUse)?UsageDescription</key>\s*<string>[^<]*</string>\s*"""
+                        ),
+                        "",
+                    )
+                if (stripped != text) plist.writeText(stripped)
             }
         }
     graalvmSidecarTaskNames += "patchMacWifiLocationPlist"
