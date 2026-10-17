@@ -106,6 +106,7 @@ import com.zaneschepke.wireguardautotunnel.desktop.ui.theme.WarningAmber
 import com.zaneschepke.wireguardautotunnel.desktop.viewmodel.AppViewModel
 import dev.nucleusframework.application.NucleusBackend
 import dev.nucleusframework.application.NucleusWindow
+import dev.nucleusframework.application.SingleInstanceRestoreEffect
 import dev.nucleusframework.application.nucleusApplication
 import dev.nucleusframework.autolaunch.AutoLaunch
 import dev.nucleusframework.autolaunch.AutoLaunchConfig
@@ -190,7 +191,12 @@ fun main(args: Array<String>) {
 
     val wasStartedAtLogin = AutoLaunch.wasStartedAtLogin(args)
 
-    nucleusApplication(args = args, backend = NucleusBackend.Tao) {
+    nucleusApplication(
+        args = args,
+        backend = NucleusBackend.Tao,
+        dockIconFollowsWindows = true,
+        enableSingleInstance = true
+    ) {
         var nucleusWindowRef: NucleusWindow? by remember { mutableStateOf(null) }
         // A login-triggered launch should come up quietly in the tray
         var isMainWindowVisible by remember { mutableStateOf(!wasStartedAtLogin) }
@@ -239,15 +245,7 @@ fun main(args: Array<String>) {
             }
         }
 
-        val isSingleInstance =
-            SingleInstanceManager.isSingleInstance(
-                onRestoreRequest = { handleWindowIntent(WindowIntent.SHOW) }
-            )
-
-        if (!isSingleInstance) {
-            exitApplication()
-            return@nucleusApplication
-        }
+        SingleInstanceRestoreEffect { handleWindowIntent(WindowIntent.SHOW) }
 
         var trayBadgeState: TrayBadgeState? by remember { mutableStateOf(null) }
         val appIcon = painterResource(Res.drawable.appicon)
