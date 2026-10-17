@@ -16,68 +16,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.Res
 import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_allow
-import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_denied_body
-import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_open_settings
 import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_permission_body
 import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_permission_title
-import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_services_off_body
-import com.zaneschepke.wireguardautotunnel.composeapp.generated.resources.wifi_name_unavailable_title
 import com.zaneschepke.wireguardautotunnel.desktop.ui.common.text.DescriptionText
 import com.zaneschepke.wireguardautotunnel.desktop.wifi.MacWifiNameCoordinator
-import com.zaneschepke.wireguardautotunnel.desktop.wifi.MacWifiNamePrompt
-import com.zaneschepke.wireguardautotunnel.desktop.wifi.macWifiNamePrompt
-import dev.nucleusframework.core.runtime.Platform
+import com.zaneschepke.wireguardautotunnel.desktop.wifi.needsLocationPrompt
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
 fun MacWifiPermissionNotice(coordinator: MacWifiNameCoordinator = koinInject()) {
-    if (Platform.Current != Platform.MacOS) return
     val status by coordinator.authorization.collectAsState()
-    val prompt = macWifiNamePrompt(status) ?: return
-    MacWifiPermissionCard(
-        prompt = prompt,
-        onAllow = coordinator::requestAuthorization,
-        onOpenSettings = coordinator::openLocationSettings,
-    )
+    if (!status.needsLocationPrompt) return
+    MacWifiPermissionCard(onOpenSettings = coordinator::openLocationSettings)
 }
 
 @Composable
-fun MacWifiPermissionCard(
-    prompt: MacWifiNamePrompt,
-    onAllow: () -> Unit,
-    onOpenSettings: () -> Unit,
-) {
-    val title =
-        stringResource(
-            when (prompt) {
-                MacWifiNamePrompt.Allow -> Res.string.wifi_name_permission_title
-                MacWifiNamePrompt.Denied,
-                MacWifiNamePrompt.ServicesOff -> Res.string.wifi_name_unavailable_title
-            }
-        )
-    val body =
-        stringResource(
-            when (prompt) {
-                MacWifiNamePrompt.Allow -> Res.string.wifi_name_permission_body
-                MacWifiNamePrompt.Denied -> Res.string.wifi_name_denied_body
-                MacWifiNamePrompt.ServicesOff -> Res.string.wifi_name_services_off_body
-            }
-        )
-    val button =
-        stringResource(
-            when (prompt) {
-                MacWifiNamePrompt.Allow -> Res.string.wifi_name_allow
-                MacWifiNamePrompt.Denied,
-                MacWifiNamePrompt.ServicesOff -> Res.string.wifi_name_open_settings
-            }
-        )
-    val onClick =
-        when (prompt) {
-            MacWifiNamePrompt.Allow -> onAllow
-            MacWifiNamePrompt.Denied,
-            MacWifiNamePrompt.ServicesOff -> onOpenSettings
-        }
+fun MacWifiPermissionCard(onOpenSettings: () -> Unit) {
+    val title = stringResource(Res.string.wifi_name_permission_title)
+    val body = stringResource(Res.string.wifi_name_permission_body)
+    val button = stringResource(Res.string.wifi_name_allow)
 
     Column(
         modifier =
@@ -93,6 +51,6 @@ fun MacWifiPermissionCard(
             color = MaterialTheme.colorScheme.primary,
         )
         DescriptionText(body)
-        Button(onClick = onClick) { Text(button) }
+        Button(onClick = onOpenSettings) { Text(button) }
     }
 }

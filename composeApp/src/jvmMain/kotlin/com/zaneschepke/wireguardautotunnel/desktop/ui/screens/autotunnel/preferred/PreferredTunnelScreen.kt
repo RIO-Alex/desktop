@@ -39,7 +39,7 @@ import com.zaneschepke.wireguardautotunnel.desktop.ui.screens.tunnels.components
 import com.zaneschepke.wireguardautotunnel.desktop.ui.sideeffects.AppSideEffect
 import com.zaneschepke.wireguardautotunnel.desktop.viewmodel.AutoTunnelViewModel
 import com.zaneschepke.wireguardautotunnel.desktop.wifi.MacWifiNameCoordinator
-import com.zaneschepke.wireguardautotunnel.desktop.wifi.macWifiNamePrompt
+import com.zaneschepke.wireguardautotunnel.desktop.wifi.needsLocationPrompt
 import dev.nucleusframework.core.runtime.Platform
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -59,7 +59,6 @@ fun PreferredTunnelScreen(
     var selectedTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     val wifiNames = koinInject<MacWifiNameCoordinator>()
     val wifiStatus by wifiNames.authorization.collectAsState()
-    val wifiPrompt = macWifiNamePrompt(wifiStatus)
 
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
@@ -97,13 +96,9 @@ fun PreferredTunnelScreen(
                     modifier = Modifier.fillMaxSize().padding(end = ScrollbarThickness),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (wifiPrompt != null) {
+                    if (wifiStatus.needsLocationPrompt) {
                         item {
-                            MacWifiPermissionCard(
-                                prompt = wifiPrompt,
-                                onAllow = wifiNames::requestAuthorization,
-                                onOpenSettings = wifiNames::openLocationSettings,
-                            )
+                            MacWifiPermissionCard(onOpenSettings = wifiNames::openLocationSettings)
                         }
                     }
                     items(uiState.tunnels, key = { it.id }) { tunnel ->

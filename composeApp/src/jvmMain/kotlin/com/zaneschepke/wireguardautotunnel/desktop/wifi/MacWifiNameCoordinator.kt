@@ -35,12 +35,6 @@ class MacWifiNameCoordinator(
         }
     }
 
-    fun requestAuthorization() {
-        if (Platform.Current != Platform.MacOS) return
-        log.i { "Opening Location Services for the Wi-Fi helper" }
-        openLocationSettings()
-    }
-
     fun openLocationSettings() {
         if (Platform.Current != Platform.MacOS) return
         scope.launch {
@@ -63,3 +57,12 @@ class MacWifiNameCoordinator(
             )
     }
 }
+
+/**
+ * True when the macOS Wi-Fi helper needs the Location prompt shown, whether that's because
+ * permission was denied or Location Services itself is off - both read the same way to a user, so
+ * [MacWifiPermissionCard] doesn't distinguish them. Null means the helper hasn't reported a status
+ * yet, so the prompt stays hidden rather than flashing it before the real state is known.
+ */
+val WifiAuthorization?.needsLocationPrompt: Boolean
+    get() = Platform.Current == Platform.MacOS && this != null && !granted
