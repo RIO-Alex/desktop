@@ -49,6 +49,12 @@ fun macWifiAgentInfoPlist(executable: String): String {
             <string>${xml(appDisplayName)}</string>
             <key>CFBundleDisplayName</key>
             <string>${xml(appDisplayName)}</string>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+            <key>LSHasLocalizedDisplayName</key>
+            <true/>
             <key>CFBundleExecutable</key>
             <string>${xml(executable)}</string>
             <key>CFBundlePackageType</key>
@@ -71,6 +77,18 @@ fun macWifiAgentInfoPlist(executable: String): String {
             <string>${xml(macWifiLocationUsage)}</string>
         </dict>
         </plist>
+        """
+        .trimIndent() + "\n"
+}
+
+// Location Services falls back to the .app folder name, and ignores an unlocalized
+// CFBundleDisplayName. The nested bundle is named for the app and carries this strings file.
+fun macWifiAgentDisplayStrings(): String {
+    fun strings(value: String) = value.replace("\\", "\\\\").replace("\"", "\\\"")
+    val name = strings(appDisplayName)
+    return """
+        CFBundleName = "$name";
+        CFBundleDisplayName = "$name";
         """
         .trimIndent() + "\n"
 }
@@ -580,12 +598,15 @@ if (isMacOS) {
 
     // A bare executable has no NSBundle, so CoreWLAN keeps returning a nil name.
     // The helper is its own app and keeps the container bundle id, so it is the
-    // same Location Services client as WG Tunnel.
+    // same Location Services client as WG Tunnel. The nested bundle is named
+    // "WG Tunnel.app" (or "WG Tunnel Beta.app"): Location Services shows that
+    // folder name when it does not use CFBundleDisplayName.
+    val macWifiAgentAppDir = "$appDisplayName.app"
     val stageMacWifiAgentBundle =
         tasks.register("stageMacWifiAgentBundle") {
             group = "nucleus"
             description =
-                "Wrap the Wi-Fi helper in a nested app with the container bundle id."
+                "Wrap the Wi-Fi helper in a nested app named for WG Tunnel, with its icon."
             dependsOn("copyGraalvmAppResources")
             doNotTrackState("Moves the helper binary inside the .app after resources are copied")
             doLast {
@@ -596,16 +617,25 @@ if (isMacOS) {
                         "stageMacWifiAgentBundle: Wi-Fi helper binary missing at ${src.absolutePath}"
                     )
                 }
-                val nestedMacOS =
-                    macBundleContents("Resources/wifi-agent.app/Contents/MacOS").get()
+                macBundleContents("Resources/wifi-agent.app").get().deleteRecursively()
+                val nestedRoot = macBundleContents("Resources/$macWifiAgentAppDir").get()
+                val nestedMacOS = nestedRoot.resolve("Contents/MacOS")
                 nestedMacOS.mkdirs()
                 val dest = nestedMacOS.resolve(executable)
                 src.copyTo(dest, overwrite = true)
                 dest.setExecutable(true, false)
                 if (src.absolutePath != dest.absolutePath) src.delete()
-                macBundleContents("Resources/wifi-agent.app/Contents/Info.plist")
-                    .get()
+                nestedRoot
+                    .resolve("Contents/Info.plist")
                     .writeText(macWifiAgentInfoPlist(executable))
+                val resources = nestedRoot.resolve("Contents/Resources")
+                resources.mkdirs()
+                rootProject
+                    .file("packaging/macos/icon.icns")
+                    .copyTo(resources.resolve("AppIcon.icns"), overwrite = true)
+                val stringsDir = resources.resolve("en.lproj")
+                stringsDir.mkdirs()
+                stringsDir.resolve("InfoPlist.strings").writeText(macWifiAgentDisplayStrings())
             }
         }
     graalvmSidecarTaskNames += "stageMacWifiAgentBundle"
@@ -624,7 +654,7 @@ if (isMacOS) {
             doLast {
                 val identity = System.getenv("APPLE_SIGNING_IDENTITY")
                 if (identity.isNullOrBlank()) return@doLast
-                val nestedApp = macBundleContents("Resources/wifi-agent.app").get()
+                val nestedApp = macBundleContents("Resources/$macWifiAgentAppDir").get()
                 if (!nestedApp.isDirectory) {
                     error(
                         "signMacWifiAgentBundle: nested helper app missing at ${nestedApp.absolutePath}"
@@ -686,8 +716,10 @@ if (isMacOS) {
 fun macBundleContents(child: String) = provider {
     val binariesRoot = layout.buildDirectory.dir("compose/binaries").get().asFile
     val appBundle =
-        binariesRoot.walkTopDown().maxDepth(5).firstOrNull {
-            it.isDirectory && it.name.endsWith(".app") && it.name != "wifi-agent.app"
+        binariesRoot.walkTopDown().maxDepth(5).firstOrNull { dir ->
+            dir.isDirectory &&
+                dir.name.endsWith(".app") &&
+                generateSequence(dir.parentFile) { it.parentFile }.none { it.name.endsWith(".app") }
         }
             ?: run {
                 val listing =

@@ -5,7 +5,7 @@
     <key>Label</key>
     <string>__WIFI_AGENT_BUNDLE_ID__</string>
     <key>BundleProgram</key>
-    <string>Contents/Resources/wifi-agent.app/Contents/MacOS/__APP_FSNAME__-wifi</string>
+    <string>Contents/Resources/__APP_DISPLAY__.app/Contents/MacOS/__APP_FSNAME__-wifi</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
