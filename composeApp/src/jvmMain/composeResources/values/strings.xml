@@ -25,7 +25,7 @@
     <string name="website_url" translatable="false">https://wgtunnel.com</string>
     <string name="privacy_policy_url" translatable="false">https://wgtunnel.com/privacy-policy/</string>
     <string name="docs_wildcards" translatable="false">https://wgtunnel.com/docs/auto-tunneling</string>
-    <string name="matrix_url" translatable="false">https://matrix.to/#/#wg-tunnel-space:matrix.org</string>
+    <string name="matrix_url" translatable="false">https://matrix.to/#/%23wg-tunnel-space:matrix.org</string>
     <string name="telegram_url" translatable="false">https://t.me/wgtunnel</string>
     <string name="tunnels">Tunnels</string>
     <string name="privacy_policy">Privacy policy</string>
